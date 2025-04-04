@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBEHS 5P06 Gp 14: Spinergy Electrospinning Data Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            color: black;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 300px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        #parameter-table {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            color: black;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 14px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #parameter-table table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        #parameter-table th, #parameter-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #parameter-table th {
+            background-color: #f2f2f2;
+            position: relative;
+            padding: 8px 35px 8px 8px;  /* Increased right padding to make room for button */
+            white-space: nowrap;
+        }
+        #parameter-table tr {
+            cursor: pointer;
+        }
+        #parameter-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .sort-button {
+            position: absolute;
+            right: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+            background: #4285f4;
+            border: 2px solid #3367d6;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            padding: 0;
+            margin: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .sort-button:hover {
+            background: #3367d6;
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .sort-button.asc:after {
+            content: '↑';
+            font-size: 20px;
+        }
+        .sort-button.desc:after {
+            content: '↓';
+            font-size: 20px;
+        }
+        .sort-button:not(.asc):not(.desc):after {
+            content: '↕';
+            font-size: 20px;
+        }
+        .highlighted-point {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .level-label {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .level-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 1200px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #point-info {
+            margin-bottom: 20px;
+            text-align: center;
+            width: 100%;
+        }
+        .modal-images-container {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .modal-image-item {
+            text-align: center;
+            flex: 1;
+            max-width: 45%;
+        }
+        .modal-image-item img {
+            max-width: 100%;
+            max-height: 60vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            cursor: zoom-in;
+            margin-bottom: 15px;
+        }
+        .modal-image-item img.zoomed {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1.5);
+            z-index: 1001;
+            cursor: zoom-out;
+            max-height: 80vh;
+        }
+        #close-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #close-button:hover {
+            background: #3367d6;
+        }
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            color: black;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .control-group {
+            margin-bottom: 8px;
+        }
+        .axis-label {
+            color: #333;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+        #camera-presets {
+            margin-top: 10px;
+        }
+        .preset-button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .preset-button:hover {
+            background: #3367d6;
+        }
+        .compare-button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: none;
+        }
+        .compare-button:hover {
+            background: #3367d6;
+        }
+        .selected-point {
+            background-color: #e3f2fd;
+        }
+        .comparison-view {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .comparison-container {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            max-width: 1200px;
+            height: 100%;
+            max-height: 90vh;
+            margin: 0 auto;
+        }
+        .comparison-item {
+            text-align: center;
+            color: white;
+            flex: 1;
+            max-width: 45%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .comparison-item img {
+            max-width: 100%;
+            max-height: 60vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            cursor: zoom-in;
+            margin-bottom: 15px;
+        }
+        .comparison-info {
+            width: 100%;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .comparison-info p {
+            margin: 5px 0;
+        }
+        #close-comparison {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #close-comparison:hover {
+            background: #3367d6;
+        }
+        .mode-button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+        }
+        .mode-button.active {
+            background: #3367d6;
+            font-weight: bold;
+        }
+        .mode-button:hover {
+            background: #3367d6;
+        }
+        .magnification-label {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-top: 10px;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 4px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info">
+        <h2>IBEHS 5P06 Gp 14: Spinergy Electrospinning Data Visualization</h2>
+        <p>X-axis: Voltage (kV)</p>
+        <p>Y-axis: Flow Rate (mL/hr)</p>
+        <p>Z-axis: TCD (mm)</p>
+        <p>Click on data points to view images</p>
+        <p>Use mouse to rotate, scroll to zoom</p>
+    </div>
+    <div id="parameter-table">
+        <h3>Data Points</h3>
+        <table id="data-points-table">
+            <tr>
+                <th>Point</th>
+                <th>Voltage</th>
+                <th>Flow Rate</th>
+                <th>TCD</th>
+            </tr>
+        </table>
+    </div>
+    <div id="controls">
+        <div class="control-group">
+            <input type="checkbox" id="show-grid" checked>
+            <label for="show-grid">Show Grid</label>
+            <input type="checkbox" id="show-axes" checked>
+            <label for="show-axes">Show Axes</label>
+        </div>
+        <div class="control-group">
+            <label for="point-size">Point Size:</label>
+            <input type="range" id="point-size" min="1" max="20" value="10">
+            <span id="point-size-value">10</span>
+        </div>
+        <div class="control-group">
+            <label for="color-scheme">Color Scheme:</label>
+            <select id="color-scheme">
+                <option value="position">Position-based</option>
+                <option value="voltage">Voltage-based</option>
+                <option value="flowrate">Flow Rate-based</option>
+                <option value="tcd">TCD-based</option>
+            </select>
+        </div>
+        <div id="camera-presets">
+            <button class="preset-button" data-position="front">Front</button>
+            <button class="preset-button" data-position="top">Top</button>
+            <button class="preset-button" data-position="side">Side</button>
+            <button class="preset-button" data-position="isometric">Isometric</button>
+        </div>
+        <button id="compare-mode-button" class="mode-button">Enable Comparison Mode</button>
+        <button id="compare-button" class="compare-button">Compare Selected Points</button>
+    </div>
+    <div id="modal">
+        <div id="modal-content">
+            <div id="point-info"></div>
+            <div class="modal-images-container">
+                <!-- Images will be dynamically added here -->
+            </div>
+            <button id="close-button">Close</button>
+        </div>
+    </div>
+    <div id="comparison-view" class="comparison-view">
+        <div class="comparison-container">
+            <div class="comparison-item">
+                <img id="compare-image-1" src="" alt="First point image">
+                <div class="comparison-info" id="compare-info-1"></div>
+            </div>
+            <div class="comparison-item">
+                <img id="compare-image-2" src="" alt="Second point image">
+                <div class="comparison-info" id="compare-info-2"></div>
+            </div>
+        </div>
+        <button id="close-comparison" class="close-button">Close Comparison</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <script>
+        // Main visualization code
+        let container, camera, scene, renderer, raycaster, mouse;
+        let points = [], pointCloud;
+        let axesHelper, gridHelper;
+        let controls;
+        let pointMaterial;
+        let selectedPoints = [];
+        let isComparisonMode = false;
+        
+        // Updated data based on user input
+        // Format: Voltage, Flow Rate, TCD
+        const sampleData = [
+            { x: 15, y: 1, z: 150, voltage: "15 kV", flowRate: "1 mL/hr", tcd: "150 mm", images: [
+                { src: "151150.png", magnification: "3500X" },
+                { src: "1511502.png", magnification: "100000X" }
+            ] },
+            { x: 15, y: 3, z: 150, voltage: "15 kV", flowRate: "3 mL/hr", tcd: "150 mm", images: [
+                { src: "153150.png", magnification: "3500X" },
+                { src: "1531502.png", magnification: "100000X" }
+            ] },
+            { x: 35, y: 1, z: 150, voltage: "35 kV", flowRate: "1 mL/hr", tcd: "150 mm", images: [
+                { src: "351150.png", magnification: "3500X" },
+                { src: "3511502.png", magnification: "100000X" }
+            ] },
+            { x: 35, y: 3, z: 150, voltage: "35 kV", flowRate: "3 mL/hr", tcd: "150 mm", images: [
+                { src: "353150.png", magnification: "3500X" },
+                { src: "3531502.png", magnification: "100000X" }
+            ] },
+            { x: 15, y: 2, z: 125, voltage: "15 kV", flowRate: "2 mL/hr", tcd: "125 mm", images: [
+                { src: "152125.png", magnification: "3500X" },
+                { src: "1521252.png", magnification: "100000X" }
+            ] },
+            { x: 15, y: 2, z: 175, voltage: "15 kV", flowRate: "2 mL/hr", tcd: "175 mm", images: [
+                { src: "152175.png", magnification: "3500X" },
+                { src: "1521752.png", magnification: "100000X" }
+            ] },
+            { x: 35, y: 2, z: 125, voltage: "35 kV", flowRate: "2 mL/hr", tcd: "125 mm", images: [
+                { src: "352125.png", magnification: "3500X" },
+                { src: "3521252.png", magnification: "100000X" }
+            ] },
+            { x: 35, y: 2, z: 175, voltage: "35 kV", flowRate: "2 mL/hr", tcd: "175 mm", images: [
+                { src: "352175.png", magnification: "3500X" },
+                { src: "3521752.png", magnification: "100000X" }
+            ] },
+            { x: 20, y: 1, z: 125, voltage: "20 kV", flowRate: "1 mL/hr", tcd: "125 mm", images: [
+                { src: "201125.png", magnification: "3500X" },
+                { src: "2011252.png", magnification: "100000X" }
+            ] },
+            { x: 20, y: 1, z: 175, voltage: "20 kV", flowRate: "1 mL/hr", tcd: "175 mm", images: [
+                { src: "201175.png", magnification: "3500X" },
+                { src: "2011752.png", magnification: "100000X" }
+            ] },
+            { x: 20, y: 3, z: 125, voltage: "20 kV", flowRate: "3 mL/hr", tcd: "125 mm", images: [
+                { src: "203125.png", magnification: "3500X" },
+                { src: "2031252.png", magnification: "100000X" }
+            ] },
+            { x: 20, y: 3, z: 175, voltage: "20 kV", flowRate: "3 mL/hr", tcd: "175 mm", images: [
+                { src: "203175.png", magnification: "3500X" },
+                { src: "2031752.png", magnification: "100000X" }
+            ] },
+            { x: 20, y: 2, z: 150, voltage: "20 kV", flowRate: "2 mL/hr", tcd: "150 mm", images: [
+                { src: "202150.png", magnification: "3500X" },
+                { src: "2021502.png", magnification: "100000X" }
+            ] }
+        ];
+        
+        // Normalize coordinates to fit in visualization
+        function normalizeData(data) {
+            // Find min and max values for each dimension
+            let minX = Math.min(...data.map(d => d.x));
+            let maxX = Math.max(...data.map(d => d.x));
+            let minY = Math.min(...data.map(d => d.y));
+            let maxY = Math.max(...data.map(d => d.y));
+            let minZ = Math.min(...data.map(d => d.z));
+            let maxZ = Math.max(...data.map(d => d.z));
+            
+            // Normalize all points to range [-50, 50]
+            return data.map(d => {
+                return {
+                    ...d,
+                    normalizedX: ((d.x - minX) / (maxX - minX) * 100) - 50,
+                    normalizedY: ((d.y - minY) / (maxY - minY) * 100) - 50,
+                    normalizedZ: ((d.z - minZ) / (maxZ - minZ) * 100) - 50
+                };
+            });
+        }
+        
+        // Generate colors based on the selected color scheme
+        function generateColors(data, scheme) {
+            const colors = [];
+            
+            data.forEach(point => {
+                let r, g, b;
+                
+                switch(scheme) {
+                    case 'position':
+                        // RGB corresponds roughly to XYZ
+                        r = (point.normalizedX + 50) / 100;
+                        g = (point.normalizedY + 50) / 100;
+                        b = (point.normalizedZ + 50) / 100;
+                        break;
+                    case 'voltage':
+                        // Color based on voltage levels
+                        if (point.x === 15) { r = 1; g = 0; b = 0; }      // Level 1: Red
+                        else if (point.x === 20) { r = 0; g = 1; b = 0; } // Level 2: Green
+                        else { r = 0; g = 0; b = 1; }                     // Level 3: Blue
+                        break;
+                    case 'flowrate':
+                        // Color based on flow rate levels
+                        if (point.y === 1) { r = 1; g = 0; b = 0; }      // Level 1: Red
+                        else if (point.y === 2) { r = 0; g = 1; b = 0; } // Level 2: Green
+                        else { r = 0; g = 0; b = 1; }                    // Level 3: Blue
+                        break;
+                    case 'tcd':
+                        // Color based on TCD levels
+                        if (point.z === 125) { r = 1; g = 0; b = 0; }    // Level 1: Red
+                        else if (point.z === 150) { r = 0; g = 1; b = 0; }// Level 2: Green
+                        else { r = 0; g = 0; b = 1; }                    // Level 3: Blue
+                        break;
+                    default:
+                        r = 0.5;
+                        g = 0.5;
+                        b = 0.5;
+                }
+                
+                colors.push(r, g, b);
+            });
+            
+            return colors;
+        }
+        
+        // Initialize the visualization
+        function init() {
+            container = document.getElementById('container');
+            
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff); // White background
+            
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(100, 100, 100);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+            
+            // Add ambient and directional light
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            // Add axes helper with darker colors for visibility on white
+            axesHelper = new THREE.AxesHelper(80);
+            scene.add(axesHelper);
+            
+            // Add grid helper with darker color for visibility on white
+            gridHelper = new THREE.GridHelper(100, 10, 0x888888, 0x888888);
+            scene.add(gridHelper);
+            
+            // Add axis labels
+            addAxisLabels();
+            
+            // Add a bounding box
+            addBoundingBox();
+            
+            // Normalize and add data points
+            const normalizedData = normalizeData(sampleData);
+            addDataPoints(normalizedData);
+            
+            // Set up raycaster for interaction
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('click', onClick);
+            document.addEventListener('mousemove', onMouseMove);
+            document.getElementById('close-button').addEventListener('click', closeModal);
+            document.getElementById('show-grid').addEventListener('change', toggleGrid);
+            document.getElementById('show-axes').addEventListener('change', toggleAxes);
+            document.getElementById('point-size').addEventListener('input', updatePointSize);
+            document.getElementById('color-scheme').addEventListener('change', updateColorScheme);
+            
+            // Camera preset buttons
+            const presetButtons = document.querySelectorAll('.preset-button');
+            presetButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    setCameraPreset(button.getAttribute('data-position'));
+                });
+            });
+            
+            // Add orbit controls for better interaction
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            
+            // Create and populate the data points table
+            createDataPointsTable();
+            
+            // Add compare mode button event listener
+            document.getElementById('compare-mode-button').addEventListener('click', toggleComparisonMode);
+            document.getElementById('compare-button').addEventListener('click', showComparison);
+            document.getElementById('close-comparison').addEventListener('click', closeComparison);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        // Add axis labels with improved visibility
+        function addAxisLabels() {
+            const labelDistance = 65;
+            const fontColor = '#000000'; // Black text
+            
+            // X-axis label (Voltage)
+            const xCanvas = document.createElement('canvas');
+            const xContext = xCanvas.getContext('2d');
+            xCanvas.width = 256;
+            xCanvas.height = 128;
+            xContext.fillStyle = fontColor;
+            xContext.font = 'Bold 24px Arial';
+            xContext.fillText('Voltage (kV)', 10, 64);
+            
+            const xTexture = new THREE.CanvasTexture(xCanvas);
+            const xMaterial = new THREE.SpriteMaterial({ map: xTexture });
+            const xSprite = new THREE.Sprite(xMaterial);
+            xSprite.position.set(labelDistance, 0, 0);
+            xSprite.scale.set(20, 10, 1);
+            scene.add(xSprite);
+            
+            // Y-axis label (Flow Rate)
+            const yCanvas = document.createElement('canvas');
+            const yContext = yCanvas.getContext('2d');
+            yCanvas.width = 256;
+            yCanvas.height = 128;
+            yContext.fillStyle = fontColor;
+            yContext.font = 'Bold 24px Arial';
+            yContext.fillText('Flow Rate (mL/hr)', 10, 64);
+            
+            const yTexture = new THREE.CanvasTexture(yCanvas);
+            const yMaterial = new THREE.SpriteMaterial({ map: yTexture });
+            const ySprite = new THREE.Sprite(yMaterial);
+            ySprite.position.set(0, labelDistance, 0);
+            ySprite.scale.set(20, 10, 1);
+            scene.add(ySprite);
+            
+            // Z-axis label (TCD)
+            const zCanvas = document.createElement('canvas');
+            const zContext = zCanvas.getContext('2d');
+            zCanvas.width = 256;
+            zCanvas.height = 128;
+            zContext.fillStyle = fontColor;
+            zContext.font = 'Bold 24px Arial';
+            zContext.fillText('TCD (mm)', 10, 64);
+            
+            const zTexture = new THREE.CanvasTexture(zCanvas);
+            const zMaterial = new THREE.SpriteMaterial({ map: zTexture });
+            const zSprite = new THREE.Sprite(zMaterial);
+            zSprite.position.set(0, 0, labelDistance);
+            zSprite.scale.set(20, 10, 1);
+            scene.add(zSprite);
+        }
+        
+        // Add a bounding box to represent the data space
+        function addBoundingBox() {
+            const boxGeometry = new THREE.BoxGeometry(100, 100, 100);
+            const edges = new THREE.EdgesGeometry(boxGeometry);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4285f4, linewidth: 2 });
+            const boundingBox = new THREE.LineSegments(edges, lineMaterial);
+            scene.add(boundingBox);
+        }
+        
+        // Add data points to the scene
+        function addDataPoints(data) {
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            const basePointSize = 10; // Increased default size
+            
+            data.forEach((point, i) => {
+                positions.push(point.normalizedX, point.normalizedY, point.normalizedZ);
+                
+                // Store original point data for interaction
+                points.push({
+                    position: new THREE.Vector3(point.normalizedX, point.normalizedY, point.normalizedZ),
+                    data: point,
+                    index: i
+                });
+
+                // Add data label
+                addDataLabel(point, i);
+
+                // Create a marker for each point with larger size
+                const markerGeometry = new THREE.SphereGeometry(2, 16, 16); // Increased marker size
+                const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                marker.position.set(point.normalizedX, point.normalizedY, point.normalizedZ);
+                scene.add(marker);
+                points[i].marker = marker;
+                
+                // Add cursor pointer style to the marker
+                marker.userData.isInteractive = true;
+            });
+            
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            
+            // Set initial colors based on position
+            const initialColors = generateColors(data, 'position');
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(initialColors, 3));
+            
+            // Create material with rounded points
+            pointMaterial = new THREE.PointsMaterial({
+                size: 10, // Increased default size
+                vertexColors: true,
+                sizeAttenuation: false, // Disable size attenuation for consistent size
+                map: createCircleTexture(),
+                alphaTest: 0.5,
+                transparent: true
+            });
+            
+            pointCloud = new THREE.Points(geometry, pointMaterial);
+            scene.add(pointCloud);
+
+            // Add edge markers
+            addEdgeMarkers(data);
+        }
+        
+        // Create a circular texture for points
+        function createCircleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            
+            const context = canvas.getContext('2d');
+            context.beginPath();
+            context.arc(64, 64, 60, 0, 2 * Math.PI);
+            context.closePath();
+            context.fillStyle = 'white';
+            context.fill();
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+        
+        // Update point size
+        function updatePointSize(event) {
+            const size = parseInt(event.target.value);
+            document.getElementById('point-size-value').textContent = size;
+            
+            if (pointMaterial) {
+                pointMaterial.size = size;
+            }
+        }
+        
+        // Update color scheme
+        function updateColorScheme(event) {
+            const scheme = event.target.value;
+            const normalizedData = normalizeData(sampleData);
+            
+            // Generate new colors based on the selected scheme
+            const newColors = generateColors(normalizedData, scheme);
+            
+            // Update the color attribute
+            const colorAttribute = pointCloud.geometry.getAttribute('color');
+            for (let i = 0; i < newColors.length; i++) {
+                colorAttribute.array[i] = newColors[i];
+            }
+            
+            colorAttribute.needsUpdate = true;
+        }
+        
+        // Set camera to a preset position
+        function setCameraPreset(position) {
+            switch (position) {
+                case 'front':
+                    camera.position.set(0, 0, 150);
+                    break;
+                case 'top':
+                    camera.position.set(0, 150, 0);
+                    break;
+                case 'side':
+                    camera.position.set(150, 0, 0);
+                    break;
+                case 'isometric':
+                    camera.position.set(100, 100, 100);
+                    break;
+            }
+            
+            camera.lookAt(0, 0, 0);
+        }
+        
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Handle mouse click
+        function onClick(event) {
+            // Calculate mouse position in normalized device coordinates
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // Update the raycaster
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Check for intersections with points
+            const intersects = raycaster.intersectObject(pointCloud);
+            
+            if (intersects.length > 0) {
+                const index = intersects[0].index;
+                const point = points[index];
+                
+                if (isComparisonMode) {
+                    // Handle point selection for comparison
+                    if (selectedPoints.length < 2 && !selectedPoints.includes(index)) {
+                        selectedPoints.push(index);
+                        point.marker.material.color.setHex(0x00ff00); // Green for selected points
+                        updateCompareButton();
+                    }
+                } else {
+                    // Show the modal with point data
+                    showPointModal(point);
+                }
+            }
+        }
+
+        // Add mousemove event handler for cursor pointer
+        function onMouseMove(event) {
+            // Calculate mouse position in normalized device coordinates
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // Update the raycaster
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Check for intersections with points
+            const intersects = raycaster.intersectObject(pointCloud);
+            
+            // Update cursor style
+            if (intersects.length > 0) {
+                document.body.style.cursor = 'pointer';
+            } else {
+                document.body.style.cursor = 'default';
+            }
+        }
+        
+        function showPointModal(point) {
+            // Clear previous content
+            const modalContent = document.getElementById('modal-content');
+            while (modalContent.firstChild) {
+                modalContent.removeChild(modalContent.firstChild);
+            }
+            
+            // Add point info
+            const pointInfo = document.createElement('div');
+            pointInfo.id = 'point-info';
+            pointInfo.innerHTML = `
+                <h3>Data Point Information</h3>
+                <p><strong>Voltage:</strong> ${point.data.voltage}</p>
+                <p><strong>Flow Rate:</strong> ${point.data.flowRate}</p>
+                <p><strong>TCD:</strong> ${point.data.tcd}</p>
+            `;
+            modalContent.appendChild(pointInfo);
+            
+            // Create images container
+            const imagesContainer = document.createElement('div');
+            imagesContainer.className = 'modal-images-container';
+            
+            // Add both images
+            point.data.images.forEach((image, index) => {
+                const imageItem = document.createElement('div');
+                imageItem.className = 'modal-image-item';
+                
+                const img = document.createElement('img');
+                img.src = image.src;
+                img.alt = `Data point image ${index + 1}`;
+                
+                // Add magnification label
+                const magnificationLabel = document.createElement('div');
+                magnificationLabel.className = 'magnification-label';
+                magnificationLabel.textContent = `Magnification: ${image.magnification}`;
+                
+                // Add zoom functionality
+                img.addEventListener('click', () => {
+                    if (img.classList.contains('zoomed')) {
+                        img.classList.remove('zoomed');
+                    } else {
+                        img.classList.add('zoomed');
+                    }
+                });
+                
+                imageItem.appendChild(img);
+                imageItem.appendChild(magnificationLabel);
+                imagesContainer.appendChild(imageItem);
+            });
+            
+            modalContent.appendChild(imagesContainer);
+            
+            // Add close button
+            const closeButton = document.createElement('button');
+            closeButton.id = 'close-button';
+            closeButton.textContent = 'Close';
+            closeButton.addEventListener('click', closeModal);
+            modalContent.appendChild(closeButton);
+            
+            // Show modal
+            document.getElementById('modal').style.display = 'flex';
+        }
+        
+        function updateCompareButton() {
+            const compareButton = document.getElementById('compare-button');
+            compareButton.style.display = selectedPoints.length === 2 ? 'block' : 'none';
+        }
+        
+        function showComparison() {
+            if (selectedPoints.length !== 2) return;
+            
+            const point1 = points[selectedPoints[0]];
+            const point2 = points[selectedPoints[1]];
+            
+            // Update comparison view
+            const compareImage1 = document.getElementById('compare-image-1');
+            const compareImage2 = document.getElementById('compare-image-2');
+            
+            // Load images and handle their sizing
+            compareImage1.src = point1.data.images[0].src;
+            compareImage2.src = point2.data.images[0].src;
+            
+            // Add zoom functionality to comparison images
+            compareImage1.addEventListener('click', () => toggleImageZoom(compareImage1));
+            compareImage2.addEventListener('click', () => toggleImageZoom(compareImage2));
+            
+            document.getElementById('compare-info-1').innerHTML = `
+                <p><strong>Point ${selectedPoints[0] + 1}</strong></p>
+                <p><strong>Voltage:</strong> ${point1.data.voltage}</p>
+                <p><strong>Flow Rate:</strong> ${point1.data.flowRate}</p>
+                <p><strong>TCD:</strong> ${point1.data.tcd}</p>
+                <p><strong>Magnification:</strong> ${point1.data.images[0].magnification}</p>
+            `;
+            
+            document.getElementById('compare-info-2').innerHTML = `
+                <p><strong>Point ${selectedPoints[1] + 1}</strong></p>
+                <p><strong>Voltage:</strong> ${point2.data.voltage}</p>
+                <p><strong>Flow Rate:</strong> ${point2.data.flowRate}</p>
+                <p><strong>TCD:</strong> ${point2.data.tcd}</p>
+                <p><strong>Magnification:</strong> ${point2.data.images[0].magnification}</p>
+            `;
+            
+            document.getElementById('comparison-view').style.display = 'flex';
+        }
+        
+        function toggleImageZoom(image) {
+            if (image.classList.contains('zoomed')) {
+                image.classList.remove('zoomed');
+                image.style.maxHeight = '60vh';
+            } else {
+                image.classList.add('zoomed');
+                image.style.maxHeight = '80vh';
+            }
+        }
+        
+        function closeComparison() {
+            document.getElementById('comparison-view').style.display = 'none';
+            // Reset selections
+            selectedPoints.forEach(index => {
+                points[index].marker.material.color.setHex(0xffffff);
+            });
+            selectedPoints = [];
+            updateCompareButton();
+        }
+        
+        // Close the modal
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+        
+        // Toggle grid visibility
+        function toggleGrid(event) {
+            gridHelper.visible = event.target.checked;
+        }
+        
+        // Toggle axes visibility
+        function toggleAxes(event) {
+            axesHelper.visible = event.target.checked;
+        }
+        
+        // Add data labels for each point
+        function addDataLabel(point, index) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 64;
+            
+            // Set up the label text with larger font
+            context.fillStyle = '#000000';
+            context.font = 'Bold 24px Arial';  // Increased font size
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(`${point.voltage}, ${point.flowRate}, ${point.tcd}`, canvas.width/2, canvas.height/2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(material);
+            
+            // Position the label above the point
+            sprite.position.set(
+                point.normalizedX,
+                point.normalizedY + 5,
+                point.normalizedZ
+            );
+            
+            sprite.scale.set(30, 7.5, 1);  // Adjusted scale for larger font
+            scene.add(sprite);
+        }
+
+        // Add edge markers
+        function addEdgeMarkers(data) {
+            // Find edge points (min/max values for each dimension)
+            const minX = Math.min(...data.map(d => d.x));
+            const maxX = Math.max(...data.map(d => d.x));
+            const minY = Math.min(...data.map(d => d.y));
+            const maxY = Math.max(...data.map(d => d.y));
+            const minZ = Math.min(...data.map(d => d.z));
+            const maxZ = Math.max(...data.map(d => d.z));
+
+            data.forEach(point => {
+                if (point.x === minX || point.x === maxX ||
+                    point.y === minY || point.y === maxY ||
+                    point.z === minZ || point.z === maxZ) {
+                    
+                    // Create edge marker
+                    const markerGeometry = new THREE.SphereGeometry(2, 16, 16);
+                    const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                    
+                    marker.position.set(
+                        point.normalizedX,
+                        point.normalizedY,
+                        point.normalizedZ
+                    );
+                    
+                    scene.add(marker);
+                }
+            });
+        }
+        
+        // Define OrbitControls if Three.js doesn't include it
+        if (!window.THREE.OrbitControls) {
+            THREE.OrbitControls = function(camera, domElement) {
+                this.domElement = domElement;
+                this.camera = camera;
+                this.enabled = true;
+                this.enableDamping = false;
+                this.dampingFactor = 0.05;
+                
+                let scope = this;
+                let rotateStart = new THREE.Vector2();
+                let rotateEnd = new THREE.Vector2();
+                let rotateDelta = new THREE.Vector2();
+                let STATE = { NONE: -1, ROTATE: 0, DOLLY: 1, PAN: 2 };
+                let state = STATE.NONE;
+                
+                function onMouseDown(event) {
+                    if (!scope.enabled) return;
+                    event.preventDefault();
+                    
+                    if (event.button === 0) {
+                        state = STATE.ROTATE;
+                        rotateStart.set(event.clientX, event.clientY);
+                    }
+                    
+                    document.addEventListener('mousemove', onMouseMove, false);
+                    document.addEventListener('mouseup', onMouseUp, false);
+                }
+                
+                function onMouseMove(event) {
+                    if (!scope.enabled) return;
+                    event.preventDefault();
+                    
+                    if (state === STATE.ROTATE) {
+                        rotateEnd.set(event.clientX, event.clientY);
+                        rotateDelta.subVectors(rotateEnd, rotateStart);
+                        
+                        let element = scope.domElement;
+                        
+                        // Rotate horizontally
+                        scope.camera.position.x = Math.cos(rotateDelta.x * 0.01) * scope.camera.position.x - Math.sin(rotateDelta.x * 0.01) * scope.camera.position.z;
+                        scope.camera.position.z = Math.sin(rotateDelta.x * 0.01) * scope.camera.position.x + Math.cos(rotateDelta.x * 0.01) * scope.camera.position.z;
+                        
+                        // Rotate vertically
+                        let radius = Math.sqrt(scope.camera.position.x * scope.camera.position.x + scope.camera.position.z * scope.camera.position.z);
+                        scope.camera.position.y += rotateDelta.y * 0.1;
+                        
+                        scope.camera.lookAt(0, 0, 0);
+                        
+                        rotateStart.copy(rotateEnd);
+                    }
+                }
+                
+                function onMouseUp() {
+                    if (!scope.enabled) return;
+                    
+                    document.removeEventListener('mousemove', onMouseMove, false);
+                    document.removeEventListener('mouseup', onMouseUp, false);
+                    
+                    state = STATE.NONE;
+                }
+                
+                function onMouseWheel(event) {
+                    if (!scope.enabled) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    let delta = 0;
+                    
+                    if (event.wheelDelta) {
+                        // WebKit / Opera / Explorer 9
+                        delta = event.wheelDelta / 40;
+                    } else if (event.detail) {
+                        // Firefox
+                        delta = -event.detail / 3;
+                    }
+                    
+                    // Zoom in/out
+                    let factor = 1.0 + delta * 0.05;
+                    scope.camera.position.multiplyScalar(factor);
+                }
+                
+                this.domElement.addEventListener('contextmenu', function(event) { event.preventDefault(); }, false);
+                this.domElement.addEventListener('mousedown', onMouseDown, false);
+                this.domElement.addEventListener('wheel', onMouseWheel, false);
+                this.domElement.addEventListener('DOMMouseScroll', onMouseWheel, false); // Firefox
+                
+                this.update = function() {
+                    // No update needed for basic controls
+                };
+            };
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update controls if they exist
+            if (controls) controls.update();
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Create and populate the data points table
+        function createDataPointsTable() {
+            const table = document.getElementById('data-points-table');
+            table.innerHTML = ''; // Clear existing content
+            
+            // Create header row with sortable columns
+            const headerRow = document.createElement('tr');
+            
+            // Create Index column
+            const indexHeader = document.createElement('th');
+            indexHeader.textContent = 'Index';
+            headerRow.appendChild(indexHeader);
+            
+            // Create Voltage column with sort button
+            const voltageHeader = document.createElement('th');
+            const voltageSpan = document.createElement('span');
+            voltageSpan.textContent = 'Voltage';
+            voltageHeader.appendChild(voltageSpan);
+            const voltageButton = document.createElement('button');
+            voltageButton.className = 'sort-button';
+            voltageButton.setAttribute('data-sort', 'x');
+            voltageButton.innerHTML = '↕';
+            voltageHeader.appendChild(voltageButton);
+            headerRow.appendChild(voltageHeader);
+            
+            // Create Flow Rate column with sort button
+            const flowRateHeader = document.createElement('th');
+            const flowRateSpan = document.createElement('span');
+            flowRateSpan.textContent = 'Flow Rate';
+            flowRateHeader.appendChild(flowRateSpan);
+            const flowRateButton = document.createElement('button');
+            flowRateButton.className = 'sort-button';
+            flowRateButton.setAttribute('data-sort', 'y');
+            flowRateButton.innerHTML = '↕';
+            flowRateHeader.appendChild(flowRateButton);
+            headerRow.appendChild(flowRateHeader);
+            
+            // Create TCD column with sort button
+            const tcdHeader = document.createElement('th');
+            const tcdSpan = document.createElement('span');
+            tcdSpan.textContent = 'TCD';
+            tcdHeader.appendChild(tcdSpan);
+            const tcdButton = document.createElement('button');
+            tcdButton.className = 'sort-button';
+            tcdButton.setAttribute('data-sort', 'z');
+            tcdButton.innerHTML = '↕';
+            tcdHeader.appendChild(tcdButton);
+            headerRow.appendChild(tcdHeader);
+            
+            table.appendChild(headerRow);
+            
+            // Add click handlers for sort buttons
+            const sortButtons = headerRow.querySelectorAll('.sort-button');
+            sortButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent row click event
+                    const sortBy = button.getAttribute('data-sort');
+                    const isAsc = !button.classList.contains('asc');
+                    
+                    // Remove sorting classes from all buttons
+                    sortButtons.forEach(btn => {
+                        btn.classList.remove('asc', 'desc');
+                    });
+                    
+                    // Add appropriate sorting class to clicked button
+                    button.classList.add(isAsc ? 'asc' : 'desc');
+                    button.innerHTML = isAsc ? '↑' : '↓';
+                    
+                    // Sort the data
+                    const sortedData = [...sampleData].sort((a, b) => {
+                        return isAsc ? a[sortBy] - b[sortBy] : b[sortBy] - a[sortBy];
+                    });
+                    
+                    // Update table rows
+                    updateTableRows(sortedData);
+                });
+            });
+            
+            // Initial population of table rows
+            updateTableRows(sampleData);
+        }
+        
+        function updateTableRows(data) {
+            const table = document.getElementById('data-points-table');
+            // Remove all rows except header
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+            
+            data.forEach((point, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${point.x} kV</td>
+                    <td>${point.y} mL/hr</td>
+                    <td>${point.z} mm</td>
+                `;
+                
+                row.addEventListener('click', () => {
+                    highlightAndRotateToPoint(sampleData.indexOf(point));
+                });
+                
+                table.appendChild(row);
+            });
+        }
+
+        // Highlight and rotate to a specific point
+        function highlightAndRotateToPoint(index) {
+            const point = points[index];
+            if (!point) return;
+
+            // Remove previous highlights
+            points.forEach(p => {
+                if (p.marker) {
+                    p.marker.material.color.setHex(0xffffff);
+                    p.marker.scale.set(1, 1, 1);
+                }
+            });
+
+            // Highlight the selected point with larger size and distinct color
+            if (point.marker) {
+                point.marker.material.color.setHex(0xff0000); // Bright red color
+                point.marker.scale.set(2.5, 2.5, 2.5); // Make selected point significantly larger
+                
+                // Create a highlight effect
+                const highlightGeometry = new THREE.SphereGeometry(3, 32, 32);
+                const highlightMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff0000,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const highlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+                highlight.position.copy(point.marker.position);
+                scene.add(highlight);
+                
+                // Remove old highlight after animation
+                setTimeout(() => {
+                    scene.remove(highlight);
+                }, 1000);
+            }
+
+            // Update point cloud colors to make selected point stand out
+            const colors = pointCloud.geometry.getAttribute('color');
+            for (let i = 0; i < points.length; i++) {
+                const idx = i * 3;
+                if (i === index) {
+                    // Make selected point bright red
+                    colors.array[idx] = 1;     // R
+                    colors.array[idx + 1] = 0; // G
+                    colors.array[idx + 2] = 0; // B
+                } else {
+                    // Make other points slightly dimmer
+                    colors.array[idx] *= 0.5;
+                    colors.array[idx + 1] *= 0.5;
+                    colors.array[idx + 2] *= 0.5;
+                }
+            }
+            colors.needsUpdate = true;
+
+            // Make the selected point larger in the point cloud
+            if (pointMaterial) {
+                const baseSize = parseInt(document.getElementById('point-size').value);
+                pointMaterial.size = baseSize;
+                pointMaterial.sizeAttenuation = true;
+            }
+
+            // Calculate camera position to look at the point
+            const distance = 100;
+            const cameraPosition = new THREE.Vector3(
+                point.position.x + distance,
+                point.position.y + distance,
+                point.position.z + distance
+            );
+
+            // Animate camera movement
+            const duration = 1000; // 1 second
+            const startPosition = camera.position.clone();
+            const startTime = Date.now();
+
+            function animateCamera() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Easing function for smooth animation
+                const easeProgress = progress < 0.5
+                    ? 2 * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                // Interpolate camera position
+                camera.position.x = startPosition.x + (cameraPosition.x - startPosition.x) * easeProgress;
+                camera.position.y = startPosition.y + (cameraPosition.y - startPosition.y) * easeProgress;
+                camera.position.z = startPosition.z + (cameraPosition.z - startPosition.z) * easeProgress;
+
+                camera.lookAt(point.position);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateCamera);
+                }
+            }
+
+            animateCamera();
+        }
+        
+        function toggleComparisonMode() {
+            isComparisonMode = !isComparisonMode;
+            const button = document.getElementById('compare-mode-button');
+            button.textContent = isComparisonMode ? 'Disable Comparison Mode' : 'Enable Comparison Mode';
+            button.classList.toggle('active', isComparisonMode);
+            
+            // Reset selections when disabling comparison mode
+            if (!isComparisonMode) {
+                selectedPoints.forEach(index => {
+                    points[index].marker.material.color.setHex(0xffffff);
+                });
+                selectedPoints = [];
+                updateCompareButton();
+            }
+        }
+        
+        // Start the visualization
+        init();
+    </script>
+</body>
+</html>
