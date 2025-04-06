@@ -52,8 +52,27 @@
         #parameter-table th {
             background-color: #f2f2f2;
             position: relative;
-            padding: 8px 35px 8px 8px;  /* Increased right padding to make room for button */
+            padding: 8px;
             white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        #parameter-table th.sorted {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        #parameter-table th:hover {
+            background-color: #e8eaf6;
+        }
+        #parameter-table th::after {
+            content: '';
+            margin-left: 5px;
+        }
+        #parameter-table th.sorted.asc::after {
+            content: '↑';
+        }
+        #parameter-table th.sorted.desc::after {
+            content: '↓';
         }
         #parameter-table tr {
             cursor: pointer;
@@ -265,11 +284,11 @@
         }
         .comparison-container {
             display: flex;
-            gap: 40px;
+            gap: 20px;
             justify-content: center;
             align-items: flex-start;
             width: 100%;
-            max-width: 1200px;
+            max-width: 1500px;
             height: 100%;
             max-height: 90vh;
             margin: 0 auto;
@@ -278,7 +297,7 @@
             text-align: center;
             color: white;
             flex: 1;
-            max-width: 45%;
+            max-width: 30%;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -301,6 +320,18 @@
         }
         .comparison-info p {
             margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .comparison-info p.highlighted {
+            background-color: rgba(25, 118, 210, 0.3);
+            font-weight: bold;
+        }
+        .comparison-info p.highest {
+            border-left: 3px solid #4caf50;
+        }
+        .comparison-info p.lowest {
+            border-left: 3px solid #f44336;
         }
         #close-comparison {
             margin-top: 20px;
@@ -363,6 +394,8 @@
                 <th>Voltage</th>
                 <th>Flow Rate</th>
                 <th>TCD</th>
+                <th>Fusion Rank</th>
+                <th>StDev</th>
             </tr>
         </table>
     </div>
@@ -407,14 +440,7 @@
     </div>
     <div id="comparison-view" class="comparison-view">
         <div class="comparison-container">
-            <div class="comparison-item">
-                <img id="compare-image-1" src="" alt="First point image">
-                <div class="comparison-info" id="compare-info-1"></div>
-            </div>
-            <div class="comparison-item">
-                <img id="compare-image-2" src="" alt="Second point image">
-                <div class="comparison-info" id="compare-info-2"></div>
-            </div>
+            <!-- Comparison items will be dynamically added here -->
         </div>
         <button id="close-comparison" class="close-button">Close Comparison</button>
     </div>
@@ -432,59 +458,59 @@
         let isComparisonMode = false;
         
         // Updated data based on user input
-        // Format: Voltage, Flow Rate, TCD
+        // Format: Voltage, Flow Rate, TCD, Fusion Rank, StDev
         const sampleData = [
-            { x: 15, y: 1, z: 150, voltage: "15 kV", flowRate: "1 mL/hr", tcd: "150 mm", images: [
-                { src: "151150.png", magnification: "3500X" },
-                { src: "1511502.png", magnification: "100000X" }
-            ] },
-            { x: 15, y: 3, z: 150, voltage: "15 kV", flowRate: "3 mL/hr", tcd: "150 mm", images: [
-                { src: "153150.png", magnification: "3500X" },
-                { src: "1531502.png", magnification: "100000X" }
-            ] },
-            { x: 35, y: 1, z: 150, voltage: "35 kV", flowRate: "1 mL/hr", tcd: "150 mm", images: [
-                { src: "351150.png", magnification: "3500X" },
-                { src: "3511502.png", magnification: "100000X" }
-            ] },
-            { x: 35, y: 3, z: 150, voltage: "35 kV", flowRate: "3 mL/hr", tcd: "150 mm", images: [
-                { src: "353150.png", magnification: "3500X" },
-                { src: "3531502.png", magnification: "100000X" }
-            ] },
-            { x: 15, y: 2, z: 125, voltage: "15 kV", flowRate: "2 mL/hr", tcd: "125 mm", images: [
-                { src: "152125.png", magnification: "3500X" },
-                { src: "1521252.png", magnification: "100000X" }
-            ] },
-            { x: 15, y: 2, z: 175, voltage: "15 kV", flowRate: "2 mL/hr", tcd: "175 mm", images: [
-                { src: "152175.png", magnification: "3500X" },
-                { src: "1521752.png", magnification: "100000X" }
-            ] },
-            { x: 35, y: 2, z: 125, voltage: "35 kV", flowRate: "2 mL/hr", tcd: "125 mm", images: [
-                { src: "352125.png", magnification: "3500X" },
-                { src: "3521252.png", magnification: "100000X" }
-            ] },
-            { x: 35, y: 2, z: 175, voltage: "35 kV", flowRate: "2 mL/hr", tcd: "175 mm", images: [
-                { src: "352175.png", magnification: "3500X" },
-                { src: "3521752.png", magnification: "100000X" }
-            ] },
-            { x: 20, y: 1, z: 125, voltage: "20 kV", flowRate: "1 mL/hr", tcd: "125 mm", images: [
-                { src: "201125.png", magnification: "3500X" },
-                { src: "2011252.png", magnification: "100000X" }
-            ] },
-            { x: 20, y: 1, z: 175, voltage: "20 kV", flowRate: "1 mL/hr", tcd: "175 mm", images: [
+            { x: 20, y: 1, z: 175, voltage: "20 kV", flowRate: "1 mL/hr", tcd: "175 mm", fusionRank: 3.53, stdev: 0.52, images: [
                 { src: "201175.png", magnification: "3500X" },
                 { src: "2011752.png", magnification: "100000X" }
             ] },
-            { x: 20, y: 3, z: 125, voltage: "20 kV", flowRate: "3 mL/hr", tcd: "125 mm", images: [
-                { src: "203125.png", magnification: "3500X" },
-                { src: "2031252.png", magnification: "100000X" }
+            { x: 35, y: 2, z: 175, voltage: "35 kV", flowRate: "2 mL/hr", tcd: "175 mm", fusionRank: 3.27, stdev: 0.59, images: [
+                { src: "352175.png", magnification: "3500X" },
+                { src: "3521752.png", magnification: "100000X" }
             ] },
-            { x: 20, y: 3, z: 175, voltage: "20 kV", flowRate: "3 mL/hr", tcd: "175 mm", images: [
+            { x: 35, y: 3, z: 150, voltage: "35 kV", flowRate: "3 mL/hr", tcd: "150 mm", fusionRank: 3.20, stdev: 0.68, images: [
+                { src: "353150.png", magnification: "3500X" },
+                { src: "3531502.png", magnification: "100000X" }
+            ] },
+            { x: 15, y: 1, z: 150, voltage: "15 kV", flowRate: "1 mL/hr", tcd: "150 mm", fusionRank: 4.00, stdev: 0.00, images: [
+                { src: "151150.png", magnification: "3500X" },
+                { src: "1511502.png", magnification: "100000X" }
+            ] },
+            { x: 15, y: 3, z: 150, voltage: "15 kV", flowRate: "3 mL/hr", tcd: "150 mm", fusionRank: 3.20, stdev: 0.42, images: [
+                { src: "153150.png", magnification: "3500X" },
+                { src: "1531502.png", magnification: "100000X" }
+            ] },
+            { x: 20, y: 3, z: 175, voltage: "20 kV", flowRate: "3 mL/hr", tcd: "175 mm", fusionRank: 3.00, stdev: 0.00, images: [
                 { src: "203175.png", magnification: "3500X" },
                 { src: "2031752.png", magnification: "100000X" }
             ] },
-            { x: 20, y: 2, z: 150, voltage: "20 kV", flowRate: "2 mL/hr", tcd: "150 mm", images: [
+            { x: 15, y: 2, z: 175, voltage: "15 kV", flowRate: "2 mL/hr", tcd: "175 mm", fusionRank: 1.70, stdev: 0.67, images: [
+                { src: "152175.png", magnification: "3500X" },
+                { src: "1521752.png", magnification: "100000X" }
+            ] },
+            { x: 20, y: 2, z: 150, voltage: "20 kV", flowRate: "2 mL/hr", tcd: "150 mm", fusionRank: 3.20, stdev: 0.63, images: [
                 { src: "202150.png", magnification: "3500X" },
                 { src: "2021502.png", magnification: "100000X" }
+            ] },
+            { x: 20, y: 3, z: 125, voltage: "20 kV", flowRate: "3 mL/hr", tcd: "125 mm", fusionRank: 2.90, stdev: 0.57, images: [
+                { src: "203125.png", magnification: "3500X" },
+                { src: "2031252.png", magnification: "100000X" }
+            ] },
+            { x: 15, y: 2, z: 125, voltage: "15 kV", flowRate: "2 mL/hr", tcd: "125 mm", fusionRank: 2.80, stdev: 0.79, images: [
+                { src: "152125.png", magnification: "3500X" },
+                { src: "1521252.png", magnification: "100000X" }
+            ] },
+            { x: 20, y: 1, z: 125, voltage: "20 kV", flowRate: "1 mL/hr", tcd: "125 mm", fusionRank: 2.80, stdev: 0.42, images: [
+                { src: "201125.png", magnification: "3500X" },
+                { src: "2011252.png", magnification: "100000X" }
+            ] },
+            { x: 35, y: 2, z: 125, voltage: "35 kV", flowRate: "2 mL/hr", tcd: "125 mm", fusionRank: 2.60, stdev: 0.74, images: [
+                { src: "352125.png", magnification: "3500X" },
+                { src: "3521252.png", magnification: "100000X" }
+            ] },
+            { x: 35, y: 1, z: 150, voltage: "35 kV", flowRate: "1 mL/hr", tcd: "150 mm", fusionRank: 3.10, stdev: 0.74, images: [
+                { src: "351150.png", magnification: "3500X" },
+                { src: "3511502.png", magnification: "100000X" }
             ] }
         ];
         
@@ -844,7 +870,7 @@
                 
                 if (isComparisonMode) {
                     // Handle point selection for comparison
-                    if (selectedPoints.length < 2 && !selectedPoints.includes(index)) {
+                    if (selectedPoints.length < 3 && !selectedPoints.includes(index)) {
                         selectedPoints.push(index);
                         point.marker.material.color.setHex(0x00ff00); // Green for selected points
                         updateCompareButton();
@@ -941,42 +967,80 @@
         
         function updateCompareButton() {
             const compareButton = document.getElementById('compare-button');
-            compareButton.style.display = selectedPoints.length === 2 ? 'block' : 'none';
+            compareButton.style.display = selectedPoints.length >= 2 ? 'block' : 'none';
+            compareButton.textContent = `Compare ${selectedPoints.length} Points`;
         }
         
         function showComparison() {
-            if (selectedPoints.length !== 2) return;
+            if (selectedPoints.length < 2) return;
             
-            const point1 = points[selectedPoints[0]];
-            const point2 = points[selectedPoints[1]];
+            const comparisonContainer = document.querySelector('.comparison-container');
+            comparisonContainer.innerHTML = ''; // Clear existing content
             
-            // Update comparison view
-            const compareImage1 = document.getElementById('compare-image-1');
-            const compareImage2 = document.getElementById('compare-image-2');
+            // Get the currently sorted column
+            const sortedColumn = currentSort.column;
             
-            // Load images and handle their sizing
-            compareImage1.src = point1.data.images[0].src;
-            compareImage2.src = point2.data.images[0].src;
+            // Collect all values for the sorted column to determine min/max
+            const values = selectedPoints.map(index => points[index].data[sortedColumn]);
+            const minValue = Math.min(...values);
+            const maxValue = Math.max(...values);
             
-            // Add zoom functionality to comparison images
-            compareImage1.addEventListener('click', () => toggleImageZoom(compareImage1));
-            compareImage2.addEventListener('click', () => toggleImageZoom(compareImage2));
-            
-            document.getElementById('compare-info-1').innerHTML = `
-                <p><strong>Point ${selectedPoints[0] + 1}</strong></p>
-                <p><strong>Voltage:</strong> ${point1.data.voltage}</p>
-                <p><strong>Flow Rate:</strong> ${point1.data.flowRate}</p>
-                <p><strong>TCD:</strong> ${point1.data.tcd}</p>
-                <p><strong>Magnification:</strong> ${point1.data.images[0].magnification}</p>
-            `;
-            
-            document.getElementById('compare-info-2').innerHTML = `
-                <p><strong>Point ${selectedPoints[1] + 1}</strong></p>
-                <p><strong>Voltage:</strong> ${point2.data.voltage}</p>
-                <p><strong>Flow Rate:</strong> ${point2.data.flowRate}</p>
-                <p><strong>TCD:</strong> ${point2.data.tcd}</p>
-                <p><strong>Magnification:</strong> ${point2.data.images[0].magnification}</p>
-            `;
+            // Create comparison items for each selected point
+            selectedPoints.forEach((pointIndex, i) => {
+                const point = points[pointIndex];
+                const comparisonItem = document.createElement('div');
+                comparisonItem.className = 'comparison-item';
+                
+                // Add image
+                const img = document.createElement('img');
+                img.src = point.data.images[0].src;
+                img.alt = `Point ${pointIndex + 1} image`;
+                img.addEventListener('click', () => toggleImageZoom(img));
+                
+                // Create info section
+                const info = document.createElement('div');
+                info.className = 'comparison-info';
+                
+                // Helper function to create a parameter row with units
+                const createParamRow = (label, value, paramKey, unit = '') => {
+                    const isNumber = !isNaN(value);
+                    let formattedValue;
+                    
+                    if (isNumber) {
+                        formattedValue = `${parseFloat(value).toFixed(2)}${unit ? ' ' + unit : ''}`;
+                    } else {
+                        formattedValue = value;
+                    }
+                    
+                    const p = document.createElement('p');
+                    p.innerHTML = `<strong>${label}:</strong> ${formattedValue}`;
+                    
+                    // Highlight if this is the sorted column
+                    if (paramKey === sortedColumn) {
+                        p.classList.add('highlighted');
+                        
+                        // Add min/max indicators for numeric values
+                        if (isNumber) {
+                            if (value === maxValue) p.classList.add('highest');
+                            if (value === minValue) p.classList.add('lowest');
+                        }
+                    }
+                    
+                    return p;
+                };
+                
+                // Add parameter rows with units
+                info.appendChild(createParamRow('Voltage', point.data.x, 'x', 'kV'));
+                info.appendChild(createParamRow('Flow Rate', point.data.y, 'y', 'mL/hr'));
+                info.appendChild(createParamRow('TCD', point.data.z, 'z', 'mm'));
+                info.appendChild(createParamRow('Fusion', point.data.fusionRank, 'fusionRank'));
+                info.appendChild(createParamRow('StDev', point.data.stdev, 'stdev'));
+                info.appendChild(createParamRow('Magnification', point.data.images[0].magnification));
+                
+                comparisonItem.appendChild(img);
+                comparisonItem.appendChild(info);
+                comparisonContainer.appendChild(comparisonItem);
+            });
             
             document.getElementById('comparison-view').style.display = 'flex';
         }
@@ -1184,81 +1248,65 @@
             const table = document.getElementById('data-points-table');
             table.innerHTML = ''; // Clear existing content
             
-            // Create header row with sortable columns
+            // Create header row
             const headerRow = document.createElement('tr');
             
-            // Create Index column
-            const indexHeader = document.createElement('th');
-            indexHeader.textContent = 'Index';
-            headerRow.appendChild(indexHeader);
+            // Create column headers with sort functionality
+            const headers = [
+                { text: 'Voltage', sort: 'x' },
+                { text: 'Flow Rate', sort: 'y' },
+                { text: 'TCD', sort: 'z' },
+                { text: 'Fusion', sort: 'fusionRank' },
+                { text: 'StDev', sort: 'stdev' }
+            ];
             
-            // Create Voltage column with sort button
-            const voltageHeader = document.createElement('th');
-            const voltageSpan = document.createElement('span');
-            voltageSpan.textContent = 'Voltage';
-            voltageHeader.appendChild(voltageSpan);
-            const voltageButton = document.createElement('button');
-            voltageButton.className = 'sort-button';
-            voltageButton.setAttribute('data-sort', 'x');
-            voltageButton.innerHTML = '↕';
-            voltageHeader.appendChild(voltageButton);
-            headerRow.appendChild(voltageHeader);
-            
-            // Create Flow Rate column with sort button
-            const flowRateHeader = document.createElement('th');
-            const flowRateSpan = document.createElement('span');
-            flowRateSpan.textContent = 'Flow Rate';
-            flowRateHeader.appendChild(flowRateSpan);
-            const flowRateButton = document.createElement('button');
-            flowRateButton.className = 'sort-button';
-            flowRateButton.setAttribute('data-sort', 'y');
-            flowRateButton.innerHTML = '↕';
-            flowRateHeader.appendChild(flowRateButton);
-            headerRow.appendChild(flowRateHeader);
-            
-            // Create TCD column with sort button
-            const tcdHeader = document.createElement('th');
-            const tcdSpan = document.createElement('span');
-            tcdSpan.textContent = 'TCD';
-            tcdHeader.appendChild(tcdSpan);
-            const tcdButton = document.createElement('button');
-            tcdButton.className = 'sort-button';
-            tcdButton.setAttribute('data-sort', 'z');
-            tcdButton.innerHTML = '↕';
-            tcdHeader.appendChild(tcdButton);
-            headerRow.appendChild(tcdHeader);
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header.text;
+                th.setAttribute('data-sort', header.sort);
+                th.addEventListener('click', () => handleSort(th));
+                headerRow.appendChild(th);
+            });
             
             table.appendChild(headerRow);
             
-            // Add click handlers for sort buttons
-            const sortButtons = headerRow.querySelectorAll('.sort-button');
-            sortButtons.forEach(button => {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Prevent row click event
-                    const sortBy = button.getAttribute('data-sort');
-                    const isAsc = !button.classList.contains('asc');
-                    
-                    // Remove sorting classes from all buttons
-                    sortButtons.forEach(btn => {
-                        btn.classList.remove('asc', 'desc');
-                    });
-                    
-                    // Add appropriate sorting class to clicked button
-                    button.classList.add(isAsc ? 'asc' : 'desc');
-                    button.innerHTML = isAsc ? '↑' : '↓';
-                    
-                    // Sort the data
-                    const sortedData = [...sampleData].sort((a, b) => {
-                        return isAsc ? a[sortBy] - b[sortBy] : b[sortBy] - a[sortBy];
-                    });
-                    
-                    // Update table rows
-                    updateTableRows(sortedData);
-                });
-            });
-            
             // Initial population of table rows
             updateTableRows(sampleData);
+        }
+        
+        let currentSort = {
+            column: null,
+            isAsc: true
+        };
+
+        function handleSort(th) {
+            const sortBy = th.getAttribute('data-sort');
+            
+            // Remove sorted class from all headers
+            const headers = document.querySelectorAll('#data-points-table th');
+            headers.forEach(header => {
+                header.classList.remove('sorted', 'asc', 'desc');
+            });
+            
+            // Determine sort direction
+            if (currentSort.column === sortBy) {
+                currentSort.isAsc = !currentSort.isAsc;
+            } else {
+                currentSort.column = sortBy;
+                currentSort.isAsc = true;
+            }
+            
+            // Add sorted class and direction
+            th.classList.add('sorted');
+            th.classList.add(currentSort.isAsc ? 'asc' : 'desc');
+            
+            // Sort the data
+            const sortedData = [...sampleData].sort((a, b) => {
+                return currentSort.isAsc ? a[sortBy] - b[sortBy] : b[sortBy] - a[sortBy];
+            });
+            
+            // Update table rows
+            updateTableRows(sortedData);
         }
         
         function updateTableRows(data) {
@@ -1268,13 +1316,14 @@
                 table.deleteRow(1);
             }
             
-            data.forEach((point, index) => {
+            data.forEach((point) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${index + 1}</td>
                     <td>${point.x} kV</td>
                     <td>${point.y} mL/hr</td>
                     <td>${point.z} mm</td>
+                    <td>${point.fusionRank.toFixed(2)}</td>
+                    <td>${point.stdev.toFixed(2)}</td>
                 `;
                 
                 row.addEventListener('click', () => {
